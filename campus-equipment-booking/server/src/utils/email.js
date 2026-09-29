@@ -1,41 +1,41 @@
-const nodemailer = require('nodemailer');
+require("dotenv").config();
+
+const { Resend } = require("resend");
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+const sender = {
+  email: "no-reply@zorixs.shop",
+  name: "CourtSide",
+};
 
 function isEmailConfigured() {
-  const port = Number(process.env.SMTP_PORT || 587);
-  return Boolean(
-    process.env.SMTP_HOST
-      && Number.isInteger(port)
-      && process.env.SMTP_USER
-      && process.env.SMTP_PASS
-      && (process.env.SMTP_FROM || process.env.SMTP_USER)
-  );
+  return Boolean(process.env.RESEND_API_KEY);
 }
 
-async function sendEmail({ to, subject, text }) {
-  if (!isEmailConfigured()) throw new Error('SMTP settings are incomplete.');
+async function sendEmail({ to, subject, text, html }) {
+  if (!isEmailConfigured()) {
+    throw new Error("Resend API key is missing.");
+  }
 
-  const port = Number(process.env.SMTP_PORT || 587);
-  const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port,
-    connectionTimeout: 10_000,
-    greetingTimeout: 10_000,
-    socketTimeout: 20_000,
-    secure: process.env.SMTP_SECURE
-      ? process.env.SMTP_SECURE === 'true'
-      : port === 465,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
-
-  await transporter.sendMail({
-    from: process.env.SMTP_FROM || process.env.SMTP_USER,
-    to,
+  const { data, error } = await resend.emails.send({
+    from: `"${sender.name}" <${sender.email}>`,
+    to: [to],
     subject,
     text,
+    ...(html && { html }),
   });
+
+  if (error) {
+    console.error("Resend email error:", error);
+    throw new Error(error.message || "Failed to send email.");
+  }
+
+  return data;
 }
 
-module.exports = { isEmailConfigured, sendEmail };
+module.exports = {
+  isEmailConfigured,
+  sendEmail,
+  sender,
+};

@@ -34,14 +34,33 @@ async function initializeDatabase() {
     }
   }
 
-  await db.query('ALTER TABLE Users ADD COLUMN IF NOT EXISTS EmailVerified BOOLEAN NOT NULL DEFAULT TRUE');
+  await db.query(
+    'ALTER TABLE Users ADD COLUMN IF NOT EXISTS EmailVerified BOOLEAN NOT NULL DEFAULT TRUE'
+  );
 }
 
-app.use(cors({ origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173' }));
-app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+app.use(cors({
+  origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173'
+}));
 
-app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
+app.use(express.json());
+
+app.use(
+  '/uploads',
+  express.static(path.join(__dirname, '..', 'uploads'))
+);
+
+
+// ===============================
+// API ROUTES
+// ===============================
+
+app.get('/api/health', (req, res) =>
+  res.json({
+    status: 'ok',
+    time: new Date().toISOString()
+  })
+);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -53,13 +72,50 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/fines', fineRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 
-// Fallback error handler (e.g. multer file-type/size errors)
-app.use((err, req, res, next) => {
-  console.error(err);
-  res.status(err.status || 500).json({ error: err.message || 'Something went wrong.' });
+
+// ===============================
+// SERVE REACT FRONTEND
+// ===============================
+
+const clientDistPath = path.join(__dirname, '../../client/dist');
+
+app.use(express.static(clientDistPath));
+
+
+// React Router fallback
+app.get('*', (req, res, next) => {
+  // Don't serve React app for unknown API routes
+  if (req.path.startsWith('/api/')) {
+    return next();
+  }
+
+  res.sendFile(path.join(clientDistPath, 'index.html'));
 });
 
-app.use((req, res) => res.status(404).json({ error: 'Not found.' }));
+
+// ===============================
+// ERROR HANDLER
+// ===============================
+
+app.use((err, req, res, next) => {
+  console.error(err);
+
+  res.status(err.status || 500).json({
+    error: err.message || 'Something went wrong.'
+  });
+});
+
+
+// ===============================
+// 404 HANDLER
+// ===============================
+
+app.use((req, res) => {
+  res.status(404).json({
+    error: 'Not found.'
+  });
+});
+
 
 const PORT = process.env.PORT || 4000;
 
@@ -70,5 +126,6 @@ initializeDatabase().then(() => {
 
   // Run once at boot, then every 30 minutes
   runOverdueSweep();
+
   cron.schedule('*/30 * * * *', runOverdueSweep);
 });
