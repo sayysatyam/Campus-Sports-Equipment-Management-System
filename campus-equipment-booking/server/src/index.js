@@ -81,10 +81,7 @@ const clientDistPath = path.join(__dirname, '../../client/dist');
 
 app.use(express.static(clientDistPath));
 
-
-// React Router fallback
 app.get('*', (req, res, next) => {
-  // Don't serve React app for unknown API routes
   if (req.path.startsWith('/api/')) {
     return next();
   }
