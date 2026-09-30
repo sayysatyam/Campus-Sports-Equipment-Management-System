@@ -10,6 +10,7 @@ import {
 import { useToast, errorMessage } from "../hooks.js";
 import { SPORTS, SPORT_ICON } from "../constants.js";
 import api from "../api.js";
+import ProfileTab from "../components/ProfileTab.jsx";
 
 const TABS = [
   ["catalog", "Catalog"],
@@ -147,6 +148,7 @@ export default function StudentDashboard() {
           onRead={markNotifRead}
         />
       )}
+      {tab === "profile" && <ProfileTab />}
 
       {bookingModalEq && (
         <BookingModal
